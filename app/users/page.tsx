@@ -25,7 +25,10 @@ function formatDate(dateString: string) {
   })
 }
 
-// ...existing code...
+interface UserUpdatePayload {
+  _id: string;
+  data: Record<string, any>;
+}
 
 const userColumns: TableColumn<User>[] = [
   { key: "name", label: "Name", sortable: true },
@@ -54,7 +57,8 @@ const userColumns: TableColumn<User>[] = [
 ]
 
 const userFormFields: FormField[] = [
-  { name: "name", label: "Full Name", type: "text", required: true },
+  { name: "first_name", label: "First Name", type: "text", required: true },
+  { name: "last_name", label: "Last Name", type: "text", required: true },
   { name: "email", label: "Email", type: "email", required: true },
   { name: "phone_number", label: "Phone Number", type: "text" },
   { name: "is_verified", label: "Verified", type: "checkbox" },
@@ -66,16 +70,15 @@ export default function UsersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const queryClient = useQueryClient()
 
-  // Fetch users from the real API
   const { data: usersResp, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: () => api.get<User[]>("/auth/admin/users"),
   })
   const users = usersResp?.data || []
-  console.log(users)
-  // Mutations for create, update, and delete
+
+  // Mutation for creating a user (assumes JSON payload)
   const createUserMutation = useMutation({
-    mutationFn: (user: Partial<User>) => api.post(`/admin/users`, user),
+    mutationFn: (user: Partial<User>) => api.post(`/auth/register`, user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
       setIsFormOpen(false)
@@ -83,17 +86,19 @@ export default function UsersPage() {
     },
   })
 
+  // Mutation for updating a user (expects FormData payload)
   const updateUserMutation = useMutation({
-    mutationFn: (user: User) => api.put(`/admin/users/${user.id}`, user),
+    mutationFn: (payload: { _id: string, data: FormData }) =>
+      api.patch(`/auth/admin/users/${payload._id}`, payload.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
-      setIsFormOpen(false)
-      setSelectedUser(null)
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setIsFormOpen(false);
+      setSelectedUser(null);
     },
-  })
+  });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (userId: string) => api.delete(`/admin/users/${userId}`),
+    mutationFn: (userId: string) => api.delete(`/auth/admin/users/${userId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
     },
@@ -106,17 +111,38 @@ export default function UsersPage() {
 
   const handleDelete = (user: User) => {
     if (confirm(`Are you sure you want to delete ${user.name}?`)) {
-      deleteUserMutation.mutate(user.id)
+      deleteUserMutation.mutate(user._id)
     }
   }
 
   const handleFormSubmit = (data: Record<string, any>) => {
+    // If we're updating an existing user
     if (selectedUser) {
-      updateUserMutation.mutate({ ...selectedUser, ...data })
+      // Create and send FormData for updates
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === "is_verified" || key === "is_active") {
+          formData.append(key, value ? "true" : "false");
+        } else if (value !== null && value !== undefined && value !== "") {
+          formData.append(key, value);
+        }
+      });
+      updateUserMutation.mutate({ _id: selectedUser._id, data: formData });
     } else {
-      createUserMutation.mutate(data)
+      // If we're creating a new user, send JSON
+      const cleanData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (typeof value === "string" && value.trim() === "") {
+          acc[key] = null;
+        } else if (key === "is_verified" || key === "is_active") {
+          acc[key] = Boolean(value);
+        } else if (value !== null && value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+      createUserMutation.mutate(cleanData);
     }
-  }
+  };
 
   const handleFormCancel = () => {
     setIsFormOpen(false)

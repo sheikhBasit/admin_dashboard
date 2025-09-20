@@ -1,16 +1,15 @@
-// User detail for user detail page
 export interface UserDetail {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  email_verified: boolean;
-  phone?: string;
-  address?: string;
-  avatar_url?: string;
-  status: "active" | "inactive" | "suspended";
-  created_at: string;
-  recent_activities?: { description: string; timestamp: string; type: string }[];
+  _id: string
+  email: string
+  first_name: string
+  last_name: string
+  name: string
+  phone_number?: string
+  created_at: string
+  updated_at: string
+  is_verified: boolean
+  is_active: boolean
+  profile_picture?: string
 }
 // System config for system page
 export interface SystemConfig {
@@ -32,25 +31,40 @@ export interface SystemLog {
   source: string;
   timestamp: string;
 }
-// Mechanic detail for mechanic detail page
-export interface MechanicDetail {
-  id: string;
+
+export interface Mechanic {
+  _id: string;
   first_name: string;
   last_name: string;
-  email: string;
-  email_verified: boolean;
-  phone?: string;
-  location?: string;
-  avatar_url?: string;
-  status: "active" | "inactive" | "pending";
-  rating: number;
-  experience_years: number;
-  hourly_rate: number;
-  specializations?: string | string[]; // Can be a string or an array of strings
+  email?: string;
+  phone_number: string;
+  cnic: string;
+  province: string;
+  city: string;
+  address: string;
+  // The API sends location as a nested object, not separate lat/lng fields.
+  location: {
+    type: string;
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  expertise: string[];
+  years_of_experience: number;
+  profile_picture?: string;
+  cnic_front?: string;
+  cnic_back?: string;
+  workshop_name?: string;
+  working_days: string[];
+  working_hours?: {
+    start_time: string;
+    end_time: string;
+  };
+  is_verified: boolean;
+  is_available: boolean;
+  average_rating?: number;
+  total_feedbacks: number;
   created_at: string;
-  services?: any[];
-  reviews?: any[];
-  upcoming_appointments?: any[];
+  updated_at?: string;
+  full_name: string;
 }
 // Dashboard metrics for dashboard page
 export interface DashboardMetrics {
@@ -173,7 +187,7 @@ import type React from "react"
 // TypeScript interfaces for API data models
 
 export interface User {
-  id: string
+  _id: string
   email: string
   name: string
   phone_number?: string
@@ -183,51 +197,17 @@ export interface User {
   is_active: boolean
 }
 
-export interface Mechanic {
-  id: string;
-  user_id?: string;
-  first_name: string;
-  last_name: string;
-  email?: string;
-  phone_number?: string;
-  cnic?: string;
-  province?: string;
-  city?: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-  expertise?: string | string[];
-  years_of_experience?: number;
-  profile_picture?: string;
-  cnic_front?: string;
-  cnic_back?: string;
-  workshop_name?: string;
-  working_days?: string | string[];
-  // Correctly represents the nested working hours object from the backend
-  working_hours?: {
-    start_time: string;
-    end_time: string;
-  };
-  is_verified?: boolean;
-  is_active?: boolean;
-  rating?: number;
-  specialization?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export interface Service {
   id: string
-  user_id: string
-  mechanic_id?: string
-  vehicle_id: string
-  title: string
-  description: string
-  status: "pending" | "in_progress" | "completed" | "cancelled"
-  priority: "low" | "medium" | "high"
+  user: User
+  mechanic: Mechanic
+  vehicle: Vehicle
+  issue_description: string
+  service_type: string
+  service_cost?: number
+  status: string
   created_at: string
-  updated_at: string
-  completed_at?: string
+  updated_at?: string
 }
 
 export type VehicleType = "car" | "bike" | "truck" | "van" | "suv" | "bus" | "other"
@@ -245,23 +225,23 @@ export interface UserOut {
 }
 
 export interface Vehicle {
-  _id: string; // Changed from id to _id
-  user_id: string;
-  model: string;
-  brand?: string;
-  year?: number;
-  type: VehicleType;
-  fuel_type?: FuelType;
-  transmission?: TransmissionType;
-  history?: string;
-  images: string[];
-  registration_number?: string;
-  mileage_km: number;
-  is_primary: boolean;
-  is_active: boolean;
-  created_at: string;
-  display_name: string; // New field from data
-  owner?: UserOut;
+  _id: string
+  user_id: string
+  model: string
+  brand?: string
+  year?: number
+  type: VehicleType
+  fuel_type?: FuelType
+  transmission?: TransmissionType
+  history?: string
+  images: string[]
+  registration_number?: string
+  mileage_km: number
+  is_primary: boolean
+  is_active: boolean
+  created_at: string
+  display_name: string
+  owner?: User
 }
 
 export interface UserOut {
@@ -335,11 +315,17 @@ export interface TableColumn<T> {
   render?: (value: any, item: T) => React.ReactNode
 }
 
+
 export interface FormField {
   name: string
   label: string
-  type: "text" | "email" | "number" | "select" | "textarea" | "checkbox"
+  type: "text" | "email" | "number" | "textarea" | "checkbox"  | 'select' | 'select-multiple' | 'time' | 'file' | 'password' | 'hidden';
   required?: boolean
   options?: { value: string; label: string }[]
   placeholder?: string
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string; // Add this for regex validation
 }

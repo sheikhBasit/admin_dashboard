@@ -67,22 +67,19 @@ private async request<T>(endpoint: string, options: RequestInit = {}): Promise<A
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { method: "GET" })
   }
-
-  async post<T>(endpoint: string, data: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
-  let body: BodyInit | undefined;
-  let headers: Record<string, string> = customHeaders || {};
+async post<T>(endpoint: string, data: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
+  const headers = new Headers(customHeaders);
+  let body: BodyInit | null = null;
 
   if (data instanceof FormData) {
-    // Handle FormData without setting Content-Type
     body = data;
-    // The browser will automatically set the correct multipart/form-data header,
-    // including the boundary.
+    // Do not set Content-Type; the browser handles it.
   } else if (data instanceof URLSearchParams) {
     body = data;
-    headers["Content-Type"] = "application/x-www-form-urlencoded";
-  } else {
+    headers.set("Content-Type", "application/x-www-form-urlencoded");
+  } else if (data !== undefined && data !== null) {
     body = JSON.stringify(data);
-    headers["Content-Type"] = "application/json";
+    headers.set("Content-Type", "application/json");
   }
 
   return this.request<T>(endpoint, {
@@ -91,21 +88,48 @@ private async request<T>(endpoint: string, options: RequestInit = {}): Promise<A
     headers,
   });
 }
-  async put<T>(endpoint: string, data: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: JSON.stringify(data),
-      headers: customHeaders,
-    })
+
+async put<T>(endpoint: string, data: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
+  const headers = new Headers(customHeaders);
+  let body: BodyInit | null = null;
+
+  if (data instanceof FormData) {
+    body = data;
+  } else if (data instanceof URLSearchParams) {
+    body = data;
+    headers.set("Content-Type", "application/x-www-form-urlencoded");
+  } else if (data !== undefined && data !== null) {
+    body = JSON.stringify(data);
+    headers.set("Content-Type", "application/json");
   }
 
-  async patch<T>(endpoint: string, data: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-      headers: customHeaders,
-    })
+  return this.request<T>(endpoint, {
+    method: "PUT",
+    body,
+    headers,
+  });
+}
+
+async patch<T>(endpoint: string, data: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
+  const headers = new Headers(customHeaders);
+  let body: BodyInit | null = null;
+
+  if (data instanceof FormData) {
+    body = data;
+  } else if (data instanceof URLSearchParams) {
+    body = data;
+    headers.set("Content-Type", "application/x-www-form-urlencoded");
+  } else if (data !== undefined && data !== null) {
+    body = JSON.stringify(data);
+    headers.set("Content-Type", "application/json");
   }
+
+  return this.request<T>(endpoint, {
+    method: "PATCH",
+    body,
+    headers,
+  });
+}
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { method: "DELETE" })

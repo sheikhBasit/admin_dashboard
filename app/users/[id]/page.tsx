@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
-import type { UserDetail, Vehicle, ChatSession, FormField, TableColumn } from "@/lib/types"
+import type { User, Vehicle, ChatSession, FormField, TableColumn } from "@/lib/types"
 import { toast } from "sonner"
 import {
   ArrowLeft,
@@ -44,7 +44,7 @@ export default function UserDetailPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["users", userId],
-    queryFn: () => api.get<UserDetail>(`/admin/users/${userId}`),
+    queryFn: () => api.get<User>(`/auth/users/id/${userId}`),
   })
   const user = data?.data;
 
@@ -61,7 +61,7 @@ export default function UserDetailPage() {
     const userChats = userChatsResp?.data;
 
   const updateUserMutation = useMutation({
-    mutationFn: (data: any) => api.put(`/admin/users/${userId}`, data),
+    mutationFn: (data: any) => api.put(`/auth/admin/users/${userId}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users", userId] });
       toast.success("User updated successfully");
@@ -70,18 +70,10 @@ export default function UserDetailPage() {
   })
 
   const deleteUserMutation = useMutation({
-    mutationFn: () => api.delete(`/admin/users/${userId}`),
+    mutationFn: () => api.delete(`/auth/admin/users/${userId}`),
     onSuccess: () => {
       toast.success("User deleted successfully");
       router.push("/users")
-    },
-  })
-
-  const verifyUserMutation = useMutation({
-    mutationFn: () => api.post(`/admin/users/${userId}/verify`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", userId] });
-      toast.success("User verified successfully");
     },
   })
 
@@ -114,18 +106,9 @@ export default function UserDetailPage() {
     { name: "first_name", label: "First Name", type: "text", required: true },
     { name: "last_name", label: "Last Name", type: "text", required: true },
     { name: "email", label: "Email", type: "email", required: true },
-    { name: "phone", label: "Phone", type: "text" },
-    { name: "address", label: "Address", type: "textarea" },
-    {
-      name: "status",
-      label: "Status",
-      type: "select",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-        { value: "suspended", label: "Suspended" },
-      ],
-    },
+    { name: "phone_number", label: "Phone", type: "text" },
+    { name: "is_verified", label: "Verified", type: "checkbox" },
+    { name: "is_active", label: "Active", type: "checkbox" },
   ]
 
   if (isLoading) {
@@ -148,16 +131,6 @@ export default function UserDetailPage() {
           <p className="text-muted-foreground">Manage user information and view activity</p>
         </div>
         <div className="flex gap-2">
-          {!user.email_verified && (
-            <Button
-              variant="outline"
-              onClick={() => verifyUserMutation.mutate()}
-              disabled={verifyUserMutation.isPending}
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Verify Email
-            </Button>
-          )}
           <Button variant="outline" onClick={() => setIsEditing(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Edit
@@ -181,7 +154,7 @@ export default function UserDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
+                <AvatarImage src={user.profile_picture || "/placeholder.svg"} />
                 <AvatarFallback>
                   {user.first_name?.[0]}
                   {user.last_name?.[0]}
@@ -199,29 +172,23 @@ export default function UserDetailPage() {
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">{user.email}</span>
-                {user.email_verified ? (
+                {user.is_verified ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 ) : (
                   <XCircle className="h-4 w-4 text-red-500" />
                 )}
               </div>
-              {user.phone && (
+              {user.phone_number && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{user.phone}</span>
-                </div>
-              )}
-              {user.address && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{user.address}</span>
+                  <span className="text-sm">{user.phone_number}</span>
                 </div>
               )}
             </div>
 
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Status</span>
-              <Badge variant={user.status === "active" ? "default" : "secondary"}>{user.status}</Badge>
+              <Badge variant={user.is_active ? "default" : "secondary"}>{user.is_active ? "Active" : "Inactive"}</Badge>
             </div>
 
             <div className="flex items-center justify-between">
@@ -286,19 +253,8 @@ export default function UserDetailPage() {
                   <CardDescription>Recent user activities and interactions</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {(user.recent_activities || []).map((activity: any, index: number) => (
-                      <div key={index} className="flex items-center space-x-4 p-3 border rounded-lg">
-                        <div className="flex-shrink-0">
-                          <Star className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{activity.description}</p>
-                          <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
-                        </div>
-                        <Badge variant="outline">{activity.type}</Badge>
-                      </div>
-                    ))}
+                  <div className="text-center text-muted-foreground py-8">
+                    Activity Log Coming Soon
                   </div>
                 </CardContent>
               </Card>
