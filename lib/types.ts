@@ -319,7 +319,7 @@ export interface TableColumn<T> {
 export interface FormField {
   name: string
   label: string
-  type: "text" | "email" | "number" | "textarea" | "checkbox"  | 'select' | 'select-multiple' | 'time' | 'file' | 'password' | 'hidden';
+  type: "text" | "email" | "number" | "textarea" | "checkbox"  | 'select' | 'select-multiple' | 'time' | 'file' | 'password' | 'hidden' | 'date' | 'datetime-local' | 'url' | 'tel' | 'color' | 'custom';
   required?: boolean
   options?: { value: string; label: string }[]
   placeholder?: string
@@ -328,4 +328,5 @@ export interface FormField {
   minLength?: number;
   maxLength?: number;
   pattern?: string; // Add this for regex validation
+  render?: (value: any, onChange: (val: any) => void) => React.ReactNode; // For custom render function
 }
