@@ -1,5 +1,5 @@
 // API configuration and utilities for FastAPI backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://zoogloeal-byron-unruled.ngrok-free.dev/"
 
 export interface ApiResponse<T> {
   data?: T
