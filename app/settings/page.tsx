@@ -356,7 +356,7 @@ export default function SettingsPage() {
       // Mock data for example
       return {
         name: "Admin User",
-        email: "admin@example.com",
+        email: "johndoe13@example.com",
         phone: "+1 (555) 123-4567",
         avatar: "",
         role: "admin",

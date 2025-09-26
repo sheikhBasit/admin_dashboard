@@ -327,9 +327,9 @@ export default function SystemPage() {
                             {log.level}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        {/* <p className="text-xs text-muted-foreground">
                           {log.source} • {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
-                        </p>
+                        </p> */}
                       </div>
                     </div>
                   ))}

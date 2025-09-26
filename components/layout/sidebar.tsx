@@ -29,11 +29,11 @@ const navigation = [
     href: "/dashboard", // Updated to point to /dashboard instead of /
     icon: LayoutDashboard,
   },
-  {
-    name: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-  },
+  // {
+  //   name: "Analytics",
+  //   href: "/analytics",
+  //   icon: BarChart3,
+  // },
   {
     name: "Users",
     href: "/users",
@@ -64,11 +64,11 @@ const navigation = [
     href: "/feedback",
     icon: Star,
   },
-  {
-    name: "Reports",
-    href: "/reports",
-    icon: FileText,
-  },
+  // {
+  //   name: "Reports",
+  //   href: "/reports",
+  //   icon: FileText,
+  // },
   {
     name: "System",
     href: "/system",

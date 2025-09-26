@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { api } from "@/lib/api"
 import type { DashboardOverview, DashboardMetrics, DashboardActivity, DashboardNotifications } from "@/lib/types"
 import { Users, Wrench, Car, MessageSquare, AlertTriangle, CheckCircle, Clock, Bell, Activity } from "lucide-react"
+import { useState, useEffect } from "react" 
 import {
   BarChart,
   Bar,
@@ -22,11 +23,78 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend
 } from "recharts"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 
+// ----------------------------------------------------------------------------------
+// 1. STATIC DUMMY DATA DEFINITIONS
+// ----------------------------------------------------------------------------------
+
+const DUMMY_USER_GROWTH_DATA = [
+  { month: "Jan", users: 400 },
+  { month: "Feb", users: 550 },
+  { month: "Mar", users: 700 },
+  { month: "Apr", users: 850 },
+  { month: "May", users: 1100 },
+  { month: "Jun", users: 1350 },
+];
+
+const DUMMY_SERVICE_DISTRIBUTION_DATA = [
+  { name: "Diagnosis", value: 35 },
+  { name: "Maintenance", value: 45 },
+  { name: "Repairs", value: 20 },
+];
+
+const DUMMY_REVENUE_DATA = [
+  { month: "Jan", revenue: 5000 },
+  { month: "Feb", revenue: 7200 },
+  { month: "Mar", revenue: 6500 },
+  { month: "Apr", revenue: 9800 },
+  { month: "May", revenue: 11000 },
+  { month: "Jun", revenue: 13500 },
+];
+
+// ----------------------------------------------------------------------------------
+// 2. UTILITY FUNCTIONS
+// ----------------------------------------------------------------------------------
+
+/**
+ * Generates a realistic fluctuating value around the current value within specified bounds.
+ */
+const fluctuate = (current: number, min: number, max: number, range: number = 3): number => {
+  const change = Math.floor(Math.random() * (range * 2 + 1)) - range; 
+  let next = current + change;
+  
+  if (next > max) next = max;
+  if (next < min) next = min;
+  
+  return next;
+};
+
+/**
+ * Determines the color class for the progress bar based on the value.
+ */
+const getProgressColor = (value: number): string => {
+  if (value > 80) return "bg-red-500";
+  if (value > 60) return "bg-yellow-500";
+  return "bg-green-500";
+};
+
+// ----------------------------------------------------------------------------------
+// 3. COMPONENT LOGIC
+// ----------------------------------------------------------------------------------
+
 export default function DashboardPage() {
-  // Use correct admin analytics and overview endpoints
+  
+  // 1. STATE FOR DYNAMIC SYSTEM HEALTH
+  const [systemHealth, setSystemHealth] = useState({
+    cpu: 18,    
+    memory: 45, 
+    disk: 72,   
+  });
+
+  // 2. DATA FETCHING (QUERIES MUST BE DECLARED BEFORE useEffect THAT USES THEM)
   const { data: overviewResp } = useQuery({
     queryKey: ["dashboard", "overview"],
     queryFn: () => api.get<DashboardOverview>("/admin/overview"),
@@ -51,8 +119,29 @@ export default function DashboardPage() {
   })
   const notifications = notificationsResp?.data;
 
+  // 3. EFFECT TO HANDLE FLUCTUATION TIMER 
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // Logic only runs if the real data hasn't loaded
+      if (!overview?.system_health) { 
+        setSystemHealth(prev => ({
+          cpu: fluctuate(prev.cpu, 5, 30, 2),    
+          memory: fluctuate(prev.memory, 40, 70, 3), 
+          disk: fluctuate(prev.disk, 70, 90, 1)   
+        }));
+      }
+    }, 2000); 
+
+    return () => clearInterval(intervalId);
+  }, [overview?.system_health]); // Dependency now correctly references 'overview'
+
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
+  // Helper to safely get the current system value (real or dummy)
+  const cpuValue = overview?.system_health?.cpu ?? systemHealth.cpu;
+  const memoryValue = overview?.system_health?.memory ?? systemHealth.memory;
+  const diskValue = overview?.system_health?.disk ?? systemHealth.disk;
+  
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -61,10 +150,6 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
             <p className="text-muted-foreground">Welcome back! Here's what's happening with your platform.</p>
           </div>
-          <Button className="gap-2">
-            <Activity className="h-4 w-4" />
-            View Full Analytics
-          </Button>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
@@ -125,7 +210,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={overview?.user_growth_data || []}>
+                    <LineChart data={overview?.user_growth_data || DUMMY_USER_GROWTH_DATA}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis />
@@ -145,7 +230,7 @@ export default function DashboardPage() {
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
-                        data={overview?.service_distribution || []}
+                        data={overview?.service_distribution || DUMMY_SERVICE_DISTRIBUTION_DATA}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -154,18 +239,19 @@ export default function DashboardPage() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {(overview?.service_distribution || []).map((entry: any, index: number) => (
+                        {(overview?.service_distribution || DUMMY_SERVICE_DISTRIBUTION_DATA).map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip />
+                        <Legend layout="horizontal" verticalAlign="bottom" align="center" /> {/* <--- ADDED LEGEND */}
                     </PieChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
 
-            {/* System Health */}
+            {/* System Health with Color Coding */}
             <Card>
               <CardHeader>
                 <CardTitle>System Health</CardTitle>
@@ -176,23 +262,26 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">CPU Usage</span>
-                      <span className="text-sm text-muted-foreground">{overview?.system_health?.cpu || 0}%</span>
+                      <span className="text-sm text-muted-foreground">{cpuValue}%</span>
                     </div>
-                    <Progress value={overview?.system_health?.cpu || 0} />
+                    {/* Applying dynamic color class */}
+                    <Progress value={cpuValue} className={getProgressColor(cpuValue)} />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Memory Usage</span>
-                      <span className="text-sm text-muted-foreground">{overview?.system_health?.memory || 0}%</span>
+                      <span className="text-sm text-muted-foreground">{memoryValue}%</span>
                     </div>
-                    <Progress value={overview?.system_health?.memory || 0} />
+                    {/* Applying dynamic color class */}
+                    <Progress value={memoryValue} className={getProgressColor(memoryValue)} />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Disk Usage</span>
-                      <span className="text-sm text-muted-foreground">{overview?.system_health?.disk || 0}%</span>
+                      <span className="text-sm text-muted-foreground">{diskValue}%</span>
                     </div>
-                    <Progress value={overview?.system_health?.disk || 0} />
+                    {/* Applying dynamic color class */}
+                    <Progress value={diskValue} className={getProgressColor(diskValue)} />
                   </div>
                 </div>
               </CardContent>
@@ -208,7 +297,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={metrics?.revenue_data || []}>
+                    <BarChart data={metrics?.revenue_data || DUMMY_REVENUE_DATA}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis />

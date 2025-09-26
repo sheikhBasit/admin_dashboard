@@ -198,16 +198,20 @@ export interface User {
 }
 
 export interface Service {
-  id: string
-  user: User
+  _id: string
+  user: UserDetail
+  user_id: string
   mechanic: Mechanic
+  mechanic_id: string
   vehicle: Vehicle
+  vehicle_id: string
   issue_description: string
   service_type: string
   service_cost?: number
   status: string
   created_at: string
   updated_at?: string
+  region?: string
 }
 
 export type VehicleType = "car" | "bike" | "truck" | "van" | "suv" | "bus" | "other"
