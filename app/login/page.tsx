@@ -25,8 +25,8 @@ const res = await api.post<{ access_token: string }>(
   "/auth/token",
   formData
 )
-    if (res.data?.access_token) {
-      localStorage.setItem("access_token", res.data.access_token)
+    if (res.access_token) {
+      localStorage.setItem("access_token", res.access_token)
       toast.success("Login successful")
       router.push("/dashboard")
     } else {

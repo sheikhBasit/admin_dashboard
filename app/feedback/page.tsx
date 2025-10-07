@@ -74,7 +74,7 @@ export default function FeedbackPage() {
     queryKey: ["feedback", "all"],
     queryFn: () => api.get<Feedback[]>("/feedback/admin/all"),
   })
-  const feedbacks = feedbackResponse?.data || []
+  const feedbacks = feedbackResponse || []
 
   const deleteMutation = useMutation({
     mutationFn: (feedbackId: string) => api.delete(`/feedback/${feedbackId}`),

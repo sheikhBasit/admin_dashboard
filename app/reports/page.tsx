@@ -38,7 +38,7 @@ function ReportsPage() {
     queryKey: ["reports"],
     queryFn: () => api.get<Report[]>("/admin/reports"),
   })
-  const reports = reportsResp?.data || []
+  const reports = reportsResp || []
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes"
@@ -51,8 +51,8 @@ function ReportsPage() {
   const handleDownload = async (report: Report) => {
     try {
       const response = await api.get<Blob>(`/admin/reports/${report.id}/download`)
-      if (response.data) {
-        const blob = response.data as Blob
+      if (response) {
+        const blob = response as Blob
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
@@ -124,7 +124,7 @@ function ReportsPage() {
             }
           : null,
       })
-  if (response.data) {
+  if (response) {
         toast.success("Report generation started")
         refetch()
         setIsGenerateOpen(false)

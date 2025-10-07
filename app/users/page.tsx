@@ -74,7 +74,7 @@ export default function UsersPage() {
     queryKey: ["users"],
     queryFn: () => api.get<User[]>("/auth/admin/users"),
   })
-  const users = usersResp?.data || []
+  const users = usersResp || []
 
   // Mutation for creating a user (assumes JSON payload)
   const createUserMutation = useMutation({

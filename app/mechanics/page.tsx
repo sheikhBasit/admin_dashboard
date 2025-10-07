@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -22,12 +22,12 @@ import {
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { Mechanic, TableColumn, FormField } from "@/lib/types"
-import { Plus, Star, X, Clock, ChevronUp, ChevronDown, Upload, User } from "lucide-react"
+import type { Mechanic, TableColumn, FormField, VehicleTypeEnum } from "@/lib/types"
+import { Plus, Star, X, Clock, ChevronUp, ChevronDown, Upload, User, MapPin } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
-// Profile Picture Upload Component
+// Profile Picture Upload Component (unchanged)
 function ProfilePictureUpload({
   value,
   onChange,
@@ -118,7 +118,7 @@ function ProfilePictureUpload({
   );
 }
 
-// Chip-based selection component
+// Chip-based selection component (unchanged)
 function ChipSelector({
   options,
   selected,
@@ -155,7 +155,7 @@ function ChipSelector({
   )
 }
 
-// Time Picker Component
+// Time Picker Component (unchanged)
 function TimePicker({ 
   value, 
   onChange, 
@@ -345,6 +345,16 @@ const mechanicColumns: TableColumn<Mechanic>[] = [
       <Badge variant={value ? "default" : "secondary"}>{value ? "Verified" : "Unverified"}</Badge>
     ),
   },
+  { // --- NEW COLUMN: Vehicle Types --- (Assuming the backend array field 'vehicle_types' still exists, though the name might be misleading for a single select)
+  key: "serviced_vehicle_types", 
+  label: "Vehicles",
+  render: (value: VehicleTypeEnum[]) => (
+    // Assuming you'll update this rendering later
+    <div className="flex flex-wrap gap-1">
+        {value}
+    </div>
+  )
+},
   {
     key: "is_available",
     label: "Available",
@@ -383,6 +393,13 @@ const expertiseOptions = [
   { value: "electronics", label: "Electronics" },
   { value: "painting", label: "Painting" },
 ]
+const VEHICLE_TYPE_OPTIONS = [
+  { value: "car", label: "Car" },
+  { value: "motorbike", label: "Motorbike" },
+  { value: "truck", label: "Truck" },
+  { value: "van", label: "Van" },
+  { value: "other", label: "Other" },
+]
 
 const workingDaysOptions = [
   { value: "monday", label: "Monday" },
@@ -401,27 +418,42 @@ const mechanicFormFields: FormField[] = [
   { 
     name: "phone_number", 
     label: "Phone Number", 
-    type: "text", 
+    type: "text", // 💡 Changed to 'text' for proper length/pattern enforcement
     required: true, 
-    minLength: 11, 
     maxLength: 11,
-    placeholder: "e.g., 03001234567"
+    placeholder: "e.g., 03001234567",
+    pattern: "^0[0-9]{10}$", 
+    inputMode: "numeric" // For mobile optimization
   },
   { name: "province", label: "Province", type: "text", required: true },
   { name: "city", label: "City", type: "text", required: true },
   { 
     name: "cnic", 
     label: "CNIC", 
-    type: "text", 
+    type: "text", // 💡 Changed to 'text' for proper length/pattern enforcement
     required: true, 
-    minLength: 13, 
     maxLength: 13,
-    placeholder: "e.g., 3520212345671"
+    placeholder: "e.g., 3520212345671",
+    pattern: "^[0-9]{13}$", 
+    inputMode: "numeric" // For mobile optimization
+    
   },
   { name: "address", label: "Address", type: "text", required: true },
-  { name: "latitude", label: "Latitude", type: "number", required: true },
-  { name: "longitude", label: "Longitude", type: "number", required: true },
-  { name: "years_of_experience", label: "Years of Experience", type: "number", required: true },
+  // 💡 Location fields are readOnly and disabled, but the DynamicForm MUST read the initialData.
+  { name: "latitude", label: "Latitude", type: "number", required: true, disabled:true, readOnly:true }, 
+  { name: "longitude", label: "Longitude", type: "number", required: true, disabled:true, readOnly:true }, 
+  
+  // ⚙️ ADDED: New single-select dropdown field for vehicle type
+  { 
+    name: "vehicle_type", // Using a new key 'vehicle_type' for the single value
+    label: "Primary Vehicle Type",
+    type: "select",
+    required: true,
+    options: VEHICLE_TYPE_OPTIONS,
+    placeholder: "Select vehicle type"
+  },
+  
+  { name: "years_of_experience", label: "Years of Experience", type: "number", required: true, min: 0 },
   { name: "workshop_name", label: "Workshop Name", type: "text" },
   { name: "is_verified", label: "Verified", type: "checkbox" },
   { name: "is_available", label: "Available", type: "checkbox" },
@@ -433,66 +465,139 @@ export default function MechanicsPage() {
   const [expertiseValues, setExpertiseValues] = useState<string[]>([])
   const [workingDaysValues, setWorkingDaysValues] = useState<string[]>([])
   const [startTime, setStartTime] = useState("09:00")
-    const [endTime, setEndTime] = useState("18:00")
+  const [endTime, setEndTime] = useState("18:00")
   const [profilePicture, setProfilePicture] = useState<File | null>(null)
+  const [vehicleTypeValues, setVehicleTypeValues] = useState<string[]>([]) // Keeping existing state
+  // State to store the autofilled location
+  const [autofillLocation, setAutofillLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+
   const queryClient = useQueryClient()
 
   const { data: mechanicsResp, isLoading } = useQuery({
     queryKey: ["mechanics"],
     queryFn: () => api.get<Mechanic[]>("/mechanics/"),
   })
-  const mechanics = mechanicsResp?.data || []
-
-  useEffect(() => {
-    if (selectedMechanic && isFormOpen) {
-      setExpertiseValues(Array.isArray(selectedMechanic.expertise) ? selectedMechanic.expertise : [])
-      setWorkingDaysValues(selectedMechanic.working_days || [])
-      setStartTime(selectedMechanic.working_hours?.start_time || "09:00")
-      setEndTime(selectedMechanic.working_hours?.end_time || "18:00")
-      setProfilePicture(null) // Reset file input when editing
-    } else if (!selectedMechanic && isFormOpen) {
-      setExpertiseValues([])
-      setWorkingDaysValues([])
-      setStartTime("09:00")
-      setEndTime("18:00")
-      setProfilePicture(null)
+  
+  // FIX 1: mechanicsResp is now Mechanic[] (the array directly)
+  const mechanics = mechanicsResp || []
+  console.log(mechanics)
+  // Function: Fetches and sets current geographic location
+  const fetchCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser.');
+      return;
     }
-  }, [selectedMechanic, isFormOpen])
+
+    toast.info('Fetching current location...', { duration: 2000 });
+    setAutofillLocation(null); // Clear old location while fetching
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setAutofillLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        toast.success('Location fetched successfully!');
+      },
+      (error) => {
+        console.log("Geolocation error:", error);
+        toast.error('Failed to get location. Please enable location services or click "Refetch".');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
+  }, []);
+
+  // EFFECT: Manages form state and location autofill on open
+  useEffect(() => {
+    if (isFormOpen) {
+      if (selectedMechanic) {
+        // Editing existing mechanic
+        setExpertiseValues(Array.isArray(selectedMechanic.expertise) ? selectedMechanic.expertise : [])
+        setWorkingDaysValues(selectedMechanic.working_days || [])
+        setStartTime(selectedMechanic.working_hours?.start_time || "09:00")
+        setEndTime(selectedMechanic.working_hours?.end_time || "18:00")
+        setProfilePicture(null)
+        // Set existing location data
+        setAutofillLocation({
+          latitude: selectedMechanic.location?.coordinates?.[1] ?? 0,
+          longitude: selectedMechanic.location?.coordinates?.[0] ?? 0,
+        });
+      } else {
+        // Adding new mechanic
+        setExpertiseValues([])
+        setWorkingDaysValues([])
+        setStartTime("09:00")
+        setEndTime("18:00")
+        setProfilePicture(null)
+        setAutofillLocation(null); // Clear previous autofill
+        
+        // AUTO-FILL LOCATION FOR NEW MECHANIC
+        fetchCurrentLocation();
+      }
+    } else {
+      // Form closed: cleanup
+      setAutofillLocation(null);
+    }
+  }, [selectedMechanic, isFormOpen, fetchCurrentLocation])
 
   const createMechanicMutation = useMutation({
-    mutationFn: (formData: FormData) => api.post(`/mechanics/register`, formData),
-    onSuccess: () => {
+    // FIX 2a: Explicitly type the return value
+    mutationFn: (formData: FormData) => api.post<Mechanic>(`/mechanics/register`, formData),
+    onSuccess: (newMechanic) => { // response is now typed as Mechanic
+      console.log("DEBUG: API RESPONSE - Mechanic creation successful.", newMechanic);
+      
       queryClient.invalidateQueries({ queryKey: ["mechanics"] })
       setIsFormOpen(false)
+      // Cleanup
+      setSelectedMechanic(null) 
       setExpertiseValues([])
       setWorkingDaysValues([])
       setStartTime("09:00")
       setEndTime("18:00")
       setProfilePicture(null)
-      toast.success("Mechanic created successfully!")
+      setAutofillLocation(null)
+      // Use full_name for dynamic success message
+      const mechanicName = newMechanic.full_name || "Mechanic";
+      toast.success(`${mechanicName} created successfully!`)
     },
     onError: (error) => {
+      
       console.error("Creation error:", error);
-      toast.error("Failed to create mechanic. Please check the form data.");
+      // FIX 3: Access message property of the thrown Error object
+      const errorMessage = (error as Error).message || "Failed to create mechanic. Please check the form data.";
+      toast.error(errorMessage);
     }
   })
 
   const updateMechanicMutation = useMutation({
-    mutationFn: ({ id, formData }: { id: string; formData: FormData }) => api.patch(`/mechanics/${id}`, formData),
-    onSuccess: () => {
+    // FIX 2b: Explicitly type the return value
+    mutationFn: ({ id, formData }: { id: string; formData: FormData }) => api.patch<Mechanic>(`/mechanics/${id}`, formData),
+    onSuccess: (updatedMechanic) => { // response is now typed as Mechanic
+      console.log("DEBUG: API RESPONSE - Mechanic update successful.", updatedMechanic);
+     
       queryClient.invalidateQueries({ queryKey: ["mechanics"] })
       setIsFormOpen(false)
+      // Cleanup
       setSelectedMechanic(null)
       setExpertiseValues([])
       setWorkingDaysValues([])
       setStartTime("09:00")
       setEndTime("18:00")
       setProfilePicture(null)
-      toast.success("Mechanic updated successfully!")
+      setAutofillLocation(null)
+      // Use full_name for dynamic success message
+      const mechanicName = updatedMechanic.full_name || "Mechanic";
+      toast.success(`${mechanicName} updated successfully!`)
     },
     onError: (error) => {
       console.error("Update error:", error);
-      toast.error("Failed to update mechanic. Please check the form data.");
+      // FIX 3: Access message property of the thrown Error object
+      const errorMessage = (error as Error).message || "Failed to update mechanic. Please check the form data.";
+      toast.error(errorMessage);
     }
   })
 
@@ -502,74 +607,88 @@ export default function MechanicsPage() {
       queryClient.invalidateQueries({ queryKey: ["mechanics"] })
       toast.success("Mechanic deleted successfully!")
     },
+    onError: (error) => {
+        console.error("Deletion error:", error);
+        const errorMessage = (error as Error).message || "Failed to delete mechanic.";
+        toast.error(errorMessage);
+    }
   })
 
-  const handleFormSubmit = (data: Record<string, any>) => {
+const handleFormSubmit = (data: Record<string, any>) => {
     const isUpdating = !!selectedMechanic;
     const formData = new FormData();
+    
+    console.log("DEBUG: SUBMISSION START - Processing form data:", data);
     
     // Validate time order
     if (startTime && endTime && startTime >= endTime) {
       toast.error("End time must be after start time");
+      console.error(`DEBUG: SUBMISSION ABORTED - Invalid working hours: Start (${startTime}) >= End (${endTime})`);
       return;
     }
     
-    // Validate and parse latitude and longitude
-    const latitude = parseFloat(data.latitude);
-    const longitude = parseFloat(data.longitude);
+    // --- LOCATION VALIDATION (REMAINS) ---
+    const finalLatitude = data.latitude !== undefined ? parseFloat(data.latitude) : 0;
+    const finalLongitude = data.longitude !== undefined ? parseFloat(data.longitude) : 0;
     
-    if (isNaN(latitude) || isNaN(longitude)) {
-      toast.error("Valid latitude and longitude are required");
+    if (isNaN(finalLatitude) || isNaN(finalLongitude) || finalLatitude === 0 || finalLongitude === 0) {
+      toast.error("A valid location (latitude and longitude) is required. Please refetch or try again.");
+      console.error(`DEBUG: SUBMISSION ABORTED - Invalid final coordinates: Lat ${finalLatitude}, Lon ${finalLongitude}`);
       return;
     }
+    // --- END LOCATION VALIDATION ---
     
-    // Create location object
-    const location = {
-      type: "Point",
-      coordinates: [longitude, latitude]
-    };
-    
-    // Add all form data
+    // 💡 CRITICAL FIX: Add all standard form fields (not arrays handled by chips).
+    // The chip fields ('expertise' and 'working_days') are handled below using their state variables.
     for (const key in data) {
       const value = data[key];
-      if (value === null || value === undefined || value === '') {
-        continue;
+
+      // Skip the array fields that the DynamicForm might mistakenly include from initialData.
+      if (key === 'expertise' || key === 'working_days' || key === 'serviced_vehicle_types' || Array.isArray(value)) {
+          continue;
       }
+      
+      if (value === null || value === undefined) continue;
 
       if (key === 'is_verified' || key === 'is_available') {
+        // Send boolean as string 'true' or 'false'
         formData.append(key, value ? 'true' : 'false');
-      } else if (key === 'workshop_name' || key === 'email') {
-        formData.append(key, value);
       } else {
-        // Include latitude and longitude in the form data
+        // Stringify all other fields (text, numbers, latitude, longitude, vehicle_type, etc.)
         formData.append(key, String(value));
       }
     }
     
+    console.log(`DEBUG: Final Coordinates Appended to FormData: Lat ${finalLatitude}, Lon ${finalLongitude}`);
+
     // Add profile picture if provided
     if (profilePicture) {
       formData.append('profile_picture', profilePicture);
+      console.log("DEBUG: Added profile_picture to FormData.");
     }
-    
-    // Add location as JSON string
-    formData.append('location', JSON.stringify(location));
     
     // Add time values
     if (startTime) formData.append('start_time', startTime);
     if (endTime) formData.append('end_time', endTime);
     
-    // Add chip values
+    // ✅ CORRECT ARRAY HANDLING: Use separate formData.append() calls for each item.
     expertiseValues.forEach(expertise => formData.append('expertise', expertise));
     workingDaysValues.forEach(day => formData.append('working_days', day));
     
+    // Log the action being taken
     if (isUpdating && selectedMechanic) {
+      console.log(`DEBUG: SUBMISSION - Initiating UPDATE mutation for ID: ${selectedMechanic._id}`);
       updateMechanicMutation.mutate({ id: selectedMechanic._id, formData });
     } else {
+      console.log("DEBUG: SUBMISSION - Initiating CREATE mutation.");
       createMechanicMutation.mutate(formData);
     }
   };
-
+  
   const handleEdit = (mechanic: Mechanic) => {
+    // ⚙️ FIX: Set selectedMechanic once to the correct type. 
+    // Data transformation (including the new vehicle_type field) is now handled 
+    // by the DynamicForm's initialData mapping below.
     setSelectedMechanic(mechanic);
     setIsFormOpen(true);
   };
@@ -589,6 +708,7 @@ export default function MechanicsPage() {
       setStartTime("09:00");
       setEndTime("18:00");
       setProfilePicture(null);
+      setAutofillLocation(null); // Final cleanup
     }
   }
 
@@ -623,6 +743,29 @@ export default function MechanicsPage() {
             </DialogHeader>
             <div className="max-h-[70vh] overflow-y-auto pr-4 -mr-4">
               <div className="space-y-4">
+                
+                {/* Location Info/Autofill */}
+                <div className="p-3 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20 flex items-center gap-3">
+                    <MapPin className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                    <div className="flex-grow text-sm text-yellow-800 dark:text-yellow-200">
+                        {selectedMechanic ? (
+                             `Current Location: Lat ${autofillLocation?.latitude.toFixed(4) || 'N/A'}, Lon ${autofillLocation?.longitude.toFixed(4) || 'N/A'}`
+                        ) : autofillLocation ? (
+                            `Location Autofilled: Lat ${autofillLocation.latitude.toFixed(4)}, Lon ${autofillLocation.longitude.toFixed(4)}`
+                        ) : (
+                            'Location access required. Click "Refetch" if inputs remain zero.'
+                        )}
+                    </div>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={fetchCurrentLocation} 
+                        className="ml-auto text-yellow-700 border-yellow-700/50 dark:border-yellow-300/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/50"
+                    >
+                        Refetch Location
+                    </Button>
+                </div>
+                
                 {/* Profile Picture Upload */}
                 <ProfilePictureUpload
                   value={profilePicture}
@@ -665,16 +808,35 @@ export default function MechanicsPage() {
 
                 {/* Regular Form */}
                 <DynamicForm
-                  key={selectedMechanic?._id || 'new-mechanic'}
+                  // 💡 FIX: Changing the key forces the DynamicForm to re-mount and read the new initialData when autofillLocation changes.
+                  key={
+                    selectedMechanic?._id || 
+                    (autofillLocation ? 'new-mechanic-filled' : 'new-mechanic-loading') 
+                  }
                   fields={mechanicFormFields}
+                  // We use a Record<string, any> type cast to safely inject the new 'vehicle_type' field 
+                  // into the initial data without causing a TypeScript error on the entire object literal,
+                  // as the DynamicForm expects flexible data.
                   initialData={
                     selectedMechanic
-                      ? {
+                      ? ({
                           ...selectedMechanic,
+                          // Use existing data for edit
                           latitude: selectedMechanic.location?.coordinates?.[1] ?? 0,
                           longitude: selectedMechanic.location?.coordinates?.[0] ?? 0,
-                        }
-                      : { is_available: true, is_verified: false }
+                          // ⚙️ SAFELY pull the first vehicle type from the array (or a default) 
+                          // to populate the new single-select 'vehicle_type' field.
+                          vehicle_type: (selectedMechanic.serviced_vehicle_types?.[0] as string) || VEHICLE_TYPE_OPTIONS[0].value,
+                        } as Record<string, any>) // Casting for safety
+                      : ({ 
+                          is_available: true, 
+                          is_verified: false,
+                          // Use autofilled location for new entry
+                          latitude: autofillLocation?.latitude ?? 0,
+                          longitude: autofillLocation?.longitude ?? 0,
+                          // ⚙️ Provide a default value for the dropdown field
+                          vehicle_type: VEHICLE_TYPE_OPTIONS[0].value,
+                        } as Record<string, any>) // Casting for safety
                   }
                   onSubmit={handleFormSubmit}
                   onCancel={() => {

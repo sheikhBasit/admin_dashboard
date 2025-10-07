@@ -32,13 +32,13 @@ export default function SystemPage() {
     queryKey: ["systemStatus"],
     queryFn: () => api.get<{ uptime?: string; db_response_time?: string; last_security_scan?: string; pending_notifications?: number; cpu_usage?: number; memory_usage?: number; disk_usage?: number }>("/admin/system/status"),
   })
-  const systemStatus = systemStatusResp?.data
+  const systemStatus = systemStatusResp
 
   const { data: logsResp } = useQuery({
     queryKey: ["systemLogs"],
     queryFn: () => api.get<SystemLog[]>("/admin/system/logs"),
   })
-  const logs = logsResp?.data
+  const logs = logsResp
 
   const handleConfigUpdate = async (key: string, value: any) => {
     const oldConfig = { ...config }
@@ -57,7 +57,7 @@ export default function SystemPage() {
   const handleSystemAction = async (action: string) => {
     try {
       const response = await api.post(`/admin/system/${action}`, {})
-      if (response.data) {
+      if (response) {
         toast.success(`System ${action} completed`)
       }
     } catch (error) {
@@ -317,7 +317,7 @@ export default function SystemPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {logs?.map((log) => (
+                  {logs?.map((log:any) => (
                     <div key={log.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-muted">
                       <div className={getLogLevelColor(log.level)}>{getLogLevelIcon(log.level)}</div>
                       <div className="flex-1 min-w-0">

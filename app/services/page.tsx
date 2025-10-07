@@ -58,7 +58,7 @@ export default function ServicesPage() {
     queryKey: ["services"],
     queryFn: () => api.get<Service[]>("/mechanic-services/admin/all"),
   })
-  const services: Service[] = servicesResp?.data || []
+  const services: Service[] = servicesResp || []
   console.log(services)
 
   // Create service

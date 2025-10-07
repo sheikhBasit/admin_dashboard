@@ -99,25 +99,25 @@ export default function DashboardPage() {
     queryKey: ["dashboard", "overview"],
     queryFn: () => api.get<DashboardOverview>("/admin/overview"),
   })
-  const overview = overviewResp?.data;
+  const overview = overviewResp;
 
   const { data: metricsResp } = useQuery({
     queryKey: ["dashboard", "metrics"],
     queryFn: () => api.get<DashboardMetrics>("/admin/analytics/services"),
   })
-  const metrics = metricsResp?.data;
+  const metrics = metricsResp;
 
   const { data: activityResp } = useQuery({
     queryKey: ["dashboard", "activity"],
     queryFn: () => api.get<DashboardActivity>("/admin/analytics/activity"),
   })
-  const activity = activityResp?.data;
+  const activity = activityResp;
 
   const { data: notificationsResp } = useQuery({
     queryKey: ["dashboard", "notifications"],
     queryFn: () => api.get<DashboardNotifications>("/admin/analytics/notifications"),
   })
-  const notifications = notificationsResp?.data;
+  const notifications = notificationsResp;
 
   // 3. EFFECT TO HANDLE FLUCTUATION TIMER 
   useEffect(() => {

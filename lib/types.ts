@@ -1,3 +1,11 @@
+export enum VehicleTypeEnum {
+  CAR = "car",
+  MOTORCYCLE = "motorcycle",
+  TRUCK = "truck",
+  VAN = "van",
+  OTHER = "other",
+}
+
 export interface UserDetail {
   _id: string
   email: string
@@ -47,6 +55,7 @@ export interface Mechanic {
     type: string;
     coordinates: [number, number]; // [longitude, latitude]
   };
+  serviced_vehicle_types: VehicleTypeEnum[];
   expertise: string[];
   years_of_experience: number;
   profile_picture?: string;
@@ -332,5 +341,8 @@ export interface FormField {
   minLength?: number;
   maxLength?: number;
   pattern?: string; // Add this for regex validation
+  disabled?: boolean;
+  readOnly?: boolean;
+  inputMode?: "text" | "numeric" | "decimal" | "tel" | "search" | "email" | "url"; // For mobile keyboards
   render?: (value: any, onChange: (val: any) => void) => React.ReactNode; // For custom render function
 }
